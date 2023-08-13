@@ -1,0 +1,57 @@
+"""
+Adds categorization support
+"""
+import argparse
+import csv
+import sqlite3
+
+def parse_amount(amount_str):
+    return float(amount_str.replace(",", "."))
+
+def categorize_transaction(conn, description):
+    cursor = conn.cursor()
+    cursor.execute("SELECT category FROM categories WHERE keyword COLLATE NOCASE IN (?)", (description,))
+    result = cursor.fetchone()
+    if result:
+        return result[0]
+    else:
+        print(f"Uncategorized transaction: {description}")
+        category = input("Please enter a category for this transaction: ")
+        cursor.execute("INSERT INTO categories (keyword, category) VALUES (?, ?)", (description, category))
+        conn.commit()
+        return category
+
+def analyze_transactions(file_path, conn):
+    categories = {
+        "Uncategorized": 0
+    }
+
+    with open(file_path, 'r', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        for row in reader:
+            amount = parse_amount(row['Summa'])
+            description = row['Saajan nimi']
+            category = categorize_transaction(conn, description)
+
+            if category not in categories:
+                categories[category] = 0
+
+            categories[category] += abs(amount)
+
+    return categories
+
+def main():
+    parser = argparse.ArgumentParser(description="Analyze and categorize bank transactions from a CSV file.")
+    parser.add_argument("file_path", help="Path to the CSV file containing bank transactions.")
+    args = parser.parse_args()
+
+    conn = sqlite3.connect("transaction_categories.db")
+    conn.execute("CREATE TABLE IF NOT EXISTS categories (keyword TEXT PRIMARY KEY, category TEXT)")
+
+    categories = analyze_transactions(args.file_path, conn)
+
+    print("Transaction Categorization and Analysis Report")
+    print("---------------------------------------------")
+    for category, total_amount in categories.items():
+        print(f"{category}: {total_amount:.2f} EUR")
+    print

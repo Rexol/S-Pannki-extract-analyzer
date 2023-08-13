@@ -1,0 +1,114 @@
+"""
+Shows categories available
+"""
+import argparse
+import csv
+import sqlite3
+
+def parse_amount(amount_str):
+    return float(amount_str.replace(",", "."))
+
+def initialize_categories_table(conn):
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY, category TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS transaction_categories (saajan_nimi TEXT PRIMARY KEY, category_id INTEGER)")
+    cursor.execute("SELECT COUNT(*) FROM categories")
+    count = cursor.fetchone()[0]
+    
+    if count == 0:
+        default_categories = [
+            "Housing and Utilities",
+            "Transportation",
+            "Food and Groceries",
+            "Personal Care",
+            "Healthcare",
+            "Entertainment",
+            "Debt Payments",
+            "Savings and Investments",
+            "Gifts and Donations",
+            "Insurance",
+            "Utilities",
+            "Miscellaneous",
+            "Uncategorized"
+        ]
+        
+        for category in default_categories:
+            cursor.execute("INSERT INTO categories (category) VALUES (?)", (category,))
+        
+        conn.commit()
+
+def categorize_transaction(conn, description):
+    cursor = conn.cursor()
+    cursor.execute("SELECT category_id FROM transaction_categories WHERE saajan_nimi COLLATE NOCASE IN (?)", (description,))
+    result = cursor.fetchone()
+    
+    if result:
+        category_id = result[0]
+    else:
+        print(f"Uncategorized transaction: {description}")
+        
+        cursor.execute("SELECT * FROM categories")
+        categories = cursor.fetchall()
+        for cat_id, cat_name in categories:
+            print(f"{cat_id}: {cat_name}")
+        
+        category_id = input("Please enter a category ID for this transaction: ")
+        cursor.execute("INSERT INTO transaction_categories (saajan_nimi, category_id) VALUES (?, ?)", (description, category_id))
+        conn.commit()
+        
+    # - cursor.execute("SELECT category FROM categories WHERE id = ?", (category_id,))
+    # - result = cursor.fetchone()
+    # -
+    # - return result[0]
+    # + return int(category_id)
+    return int(category_id)
+
+def analyze_transactions(file_path, conn):
+    initialize_categories_table(conn)
+    
+    categories = {}
+    
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM categories")
+    rows = cursor.fetchall()
+    
+    for row in rows:
+        categories[row[0]] = 0
+
+    with open(file_path, 'r', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        for row in reader:
+            amount = parse_amount(row['Summa'])
+            description = row['Saajan nimi']
+            # - category = categorize_transaction(conn, description)
+            # + category_id = categorize_transaction(conn, description)
+            category_id = categorize_transaction(conn, description)
+
+            # - categories[category] += abs(amount)
+            # + categories[category_id] += abs(amount)
+            categories[category_id] += abs(amount)
+
+    return categories
+
+def main():
+    parser = argparse.ArgumentParser(description="Analyze and categorize bank transactions from a CSV file.")
+    parser.add_argument("file_path", help="Path to the CSV file containing bank transactions.")
+    args = parser.parse_args()
+
+    conn = sqlite3.connect("transaction_categories.db")
+    
+    categories = analyze_transactions(args.file_path, conn)
+
+    print("Transaction Categorization and Analysis Report")
+    print("---------------------------------------------")
+    cursor = conn.cursor()
+    for category_id, total_amount in categories.items():
+        cursor.execute("SELECT category FROM categories WHERE id = ?", (category_id,))
+        category_name = cursor.fetchone()[0]
+        print(f"{category_name}: {total_amount:.2f} EUR")
+    print("---------------------------------------------")
+
+    conn.close()
+
+if __name__ == "__main__":
+    main()

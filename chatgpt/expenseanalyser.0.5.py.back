@@ -1,0 +1,258 @@
+"""
+Shows categories available
+Different categories for expenses, incomes
+More info when asks for category
+total stats
+edit categories
+"""
+import argparse
+import csv
+import sqlite3
+
+def parse_amount(amount_str):
+    return float(amount_str.replace(",", "."))
+
+def initialize_categories_table(conn):
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY, category TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS transaction_categories (saajan_nimi TEXT PRIMARY KEY, category_id INTEGER)")
+    cursor.execute("SELECT COUNT(*) FROM categories")
+    count = cursor.fetchone()[0]
+    
+    if count == 0:
+        default_categories = [
+            "Housing and Utilities",
+            "Transportation",
+            "Food and Groceries",
+            "Personal Care",
+            "Healthcare",
+            "Entertainment",
+            "Debt Payments",
+            "Savings and Investments",
+            "Gifts and Donations",
+            "Insurance",
+            "Utilities",
+            "Miscellaneous",
+            "Uncategorized"
+        ]
+        
+        for category in default_categories:
+            cursor.execute("INSERT INTO categories (category) VALUES (?)", (category,))
+        
+        conn.commit()
+
+def initialize_incoming_categories_table(conn):
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS incoming_categories (id INTEGER PRIMARY KEY, category TEXT)")
+    cursor.execute("SELECT COUNT(*) FROM incoming_categories")
+    count = cursor.fetchone()[0]
+    
+    if count == 0:
+        default_incoming_categories = [
+            "Salary",
+            "Inter Account Transaction",
+            "Incoming Money Transfer"
+        ]
+        
+        for category in default_incoming_categories:
+            cursor.execute("INSERT INTO incoming_categories (category) VALUES (?)", (category,))
+        
+        conn.commit()
+
+def display_categories(conn, table_name):
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM {table_name}")
+    categories = cursor.fetchall()
+    
+    print(f"Available {table_name.replace('_', ' ')}:")
+    for cat_id, cat_name in categories:
+        print(f"{cat_id}: {cat_name}")
+    print("")
+
+def manage_categories(conn, table_name):
+    while True:
+        display_categories(conn, table_name)
+        action = input("Enter 'add' to add a new category, 'rename' to rename an existing category, 'delete' to delete a category, or 'done' to finish: ")
+        
+        if action == "done":
+            break
+        
+        if action == "add":
+            new_category = input("Enter the name of the new category: ")
+            cursor = conn.cursor()
+            cursor.execute(f"INSERT INTO {table_name} (category) VALUES (?)", (new_category,))
+            conn.commit()
+            print(f"{new_category} has been added.\n")
+        
+        elif action == "rename":
+            cat_id = input("Enter the ID of the category to rename: ")
+            new_name = input("Enter the new name for the category: ")
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE {table_name} SET category = ? WHERE id = ?", (new_name, cat_id))
+            conn.commit()
+            print(f"Category {cat_id} has been renamed to {new_name}.\n")
+        
+        elif action == "delete":
+            cat_id = input("Enter the ID of the category to delete: ")
+            cursor = conn.cursor()
+            cursor.execute(f"DELETE FROM {table_name} WHERE id = ?", (cat_id,))
+            conn.commit()
+            print(f"Category {cat_id} has been deleted.\n")
+
+# - def categorize_transaction(conn, description, table_name):
+# + def categorize_transaction(conn, description, table_name, transaction_info):
+def categorize_transaction(conn, description, table_name, transaction_info):
+    cursor = conn.cursor()
+    cursor.execute("SELECT category_id FROM transaction_categories WHERE saajan_nimi COLLATE NOCASE IN (?)", (description,))
+    result = cursor.fetchone()
+    
+    if result:
+        category_id = result[0]
+    else:
+        display_categories(conn, table_name)
+        # + print("\nTransaction Details:")
+        # + print("Maksupäivä:", transaction_info["Maksupäivä"])
+        # + print("Summa:", transaction_info["Summa"])
+        # + print("Tapahtumalaji:", transaction_info["Tapahtumalaji"])
+        # + print("Maksaja:", transaction_info["Maksaja"])
+        # + print("Saajan nimi:", transaction_info["Saajan nimi"])
+        # + print("Viesti:", transaction_info["Viesti"])
+        print("\nTransaction Details:")
+        print("Maksupäivä:", transaction_info["Maksupäivä"])
+        print("Summa:", transaction_info["Summa"])
+        print("Tapahtumalaji:", transaction_info["Tapahtumalaji"])
+        print("Maksaja:", transaction_info["Maksaja"])
+        print("Saajan nimi:", transaction_info["Saajan nimi"])
+        print("Viesti:", transaction_info["Viesti"])
+
+        category_id = input("Please enter a category ID for this transaction: ")
+        cursor.execute("INSERT INTO transaction_categories (saajan_nimi, category_id) VALUES (?, ?)", (description, category_id))
+        conn.commit()
+        
+    return int(category_id)
+
+def analyze_transactions(file_path, conn, table_name):
+    initialize_categories_table(conn)
+    initialize_incoming_categories_table(conn)
+    
+    # - categories = {}
+    # + spent_categories = {}
+    # + received_categories = {}
+    spent_categories = {}
+    received_categories = {}
+    
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM categories")
+    rows = cursor.fetchall()
+    
+    for row in rows:
+        # - categories[row[0]] = 0
+        # + spent_categories[row[0]] = 0
+        # + received_categories[row[0]] = 0
+        spent_categories[row[0]] = 0
+        received_categories[row[0]] = 0
+
+    with open(file_path, 'r', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        for row in reader:
+            amount = parse_amount(row['Summa'])
+            description = row['Saajan nimi']
+            # + transaction_info = {
+            # +     "Maksupäivä": row['Maksupäivä'],
+            # +     "Summa": row['Summa'],
+            # +     "Tapahtumalaji": row['Tapahtumalaji'],
+            # +     "Maksaja": row['Maksaja'],
+            # +     "Saajan nimi": description,
+            # +     "Viesti": row['Viesti']
+            # + }
+            transaction_info = {
+                "Maksupäivä": row['Maksupäivä'],
+                "Summa": row['Summa'],
+                "Tapahtumalaji": row['Tapahtumalaji'],
+                "Maksaja": row['Maksaja'],
+                "Saajan nimi": description,
+                "Viesti": row['Viesti']
+            }
+            # - category_id = categorize_transaction(conn, description, table_name)
+            # + category_id = categorize_transaction(conn, description, table_name, transaction_info)
+            category_id = categorize_transaction(conn, description, table_name, transaction_info)
+
+
+            # - categories[category_id] += abs(amount)
+            # + if amount < 0:
+            # +     spent_categories[category_id] += abs(amount)
+            # + else:
+            # +     received_categories[category_id] += amount
+            if amount < 0:
+                spent_categories[category_id] += abs(amount)
+            else:
+                received_categories[category_id] += amount
+
+    # - return categories
+    # + return spent_categories, received_categories
+    return spent_categories, received_categories
+
+def main():
+    parser = argparse.ArgumentParser(description="Analyze and categorize bank transactions from a CSV file.")
+    parser.add_argument("file_path", help="Path to the CSV file containing bank transactions.")
+    args = parser.parse_args()
+
+    conn = sqlite3.connect("transaction_categories.db")
+    
+    table_name = "incoming_categories" if "incoming" in args.file_path else "categories"
+    # - categories = analyze_transactions(args.file_path, conn, table_name)
+    # + spent_categories, received_categories = analyze_transactions(args.file_path, conn, table_name)
+    spent_categories, received_categories = analyze_transactions(args.file_path, conn, table_name)
+
+    print("Transaction Categorization and Analysis Report")
+    print("---------------------------------------------")
+    cursor = conn.cursor()
+    # - total_amount = 0
+    # - for category_id, total in categories.items():
+    # + total_spent = 0
+    # + total_received = 0
+    
+    # + print("Spent Categories:")
+    # + for category_id, total in spent_categories.items():
+    # +     cursor.execute(f"SELECT category FROM {table_name} WHERE id = ?", (category_id,))
+    # +     category_name = cursor.fetchone()[0]
+    # +     print(f"{category_name}: {total:.2f} EUR")
+    # +     total_spent += total
+    
+    # + print("\nReceived Categories:")
+    # + for category_id, total in received_categories.items():
+    total_spent = 0
+    total_received = 0
+    
+    print("Spent Categories:")
+    for category_id, total in spent_categories.items():
+        cursor.execute(f"SELECT category FROM {table_name} WHERE id = ?", (category_id,))
+        category_name = cursor.fetchone()[0]
+        print(f"{category_name}: {total:.2f} EUR")
+        total_spent += total
+    
+    print("\nReceived Categories:")
+    for category_id, total in received_categories.items():
+        cursor.execute(f"SELECT category FROM {table_name} WHERE id = ?", (category_id,))
+        category_name = cursor.fetchone()[0]
+        print(f"{category_name}: {total:.2f} EUR")
+        # - total_amount += total
+        # + total_received += total
+        total_received += total
+
+    print("---------------------------------------------")
+    # - print(f"Total: {total_amount:.2f} EUR")
+    # + print(f"Total Spent: {total_spent:.2f} EUR")
+    # + print(f"Total Received: {total_received:.2f} EUR")
+    print(f"Total Spent: {total_spent:.2f} EUR")
+    print(f"Total Received: {total_received:.2f} EUR")
+    print("---------------------------------------------")
+
+    manage = input("Do you want to manage categories? (yes/no): ")
+    if manage.lower() == "yes":
+        manage_categories(conn, table_name)
+
+    conn.close()
+
+if __name__ == "__main__":
+    main()

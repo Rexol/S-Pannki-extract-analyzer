@@ -1,0 +1,39 @@
+"""
+Simple script that generates the income / outcome stats for s-pankki
+"""
+import argparse
+import csv
+
+def parse_amount(amount_str):
+    return float(amount_str.replace(",", "."))
+
+def analyze_transactions(file_path):
+    incomes = 0
+    outcomes = 0
+
+    with open(file_path, 'r', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        for row in reader:
+            amount = parse_amount(row['Summa'])
+            if amount > 0:
+                incomes += amount
+            else:
+                outcomes += abs(amount)
+
+    return incomes, outcomes
+
+def main():
+    parser = argparse.ArgumentParser(description="Analyze bank transactions from a CSV file.")
+    parser.add_argument("file_path", help="Path to the CSV file containing bank transactions.")
+    args = parser.parse_args()
+
+    incomes, outcomes = analyze_transactions(args.file_path)
+
+    print("Transaction Analysis Report")
+    print("----------------------------")
+    print(f"Total Incomes: {incomes:.2f} EUR")
+    print(f"Total Outcomes: {outcomes:.2f} EUR")
+    print("-----------------------------")
+
+if __name__ == "__main__":
+    main()
