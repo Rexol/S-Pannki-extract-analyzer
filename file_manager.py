@@ -1,5 +1,5 @@
 import csv
-from io import TextIOWrapper
+import io
 
 
 class InputFileManager:
@@ -12,8 +12,9 @@ class InputFileManager:
         self.curr = {}
 
     def __enter__(self):
-        self.in_file = open(self.file_path, 'r', encoding='utf-8')
-        self.out_file = open(self.output_path, 'w', encoding='utf-8')
+        self.in_file = io.open(self.file_path, 'r', encoding='utf-8')
+        self.out_file = io.open(self.output_path, 'w',
+                                encoding='utf-8', newline='')
 
         self.reader = csv.DictReader(self.in_file, delimiter=';')
         fieldnames = list(self.reader.fieldnames)  # type: ignore
