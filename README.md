@@ -1,27 +1,35 @@
-# S-Pankki extract analyzer
+# S-Pankki Extract Analyzer
 
-## About
+## Description
 
-Simple script that helpes analysing the S-Pankki account extract in .csv format. It requires manual categorization of the data, but then it remembers the category based on the recipient name field ("Saajan nimi") which works for the most of my expenses.
+The S-Pankki Extract Analyzer is a straightforward script designed to assist in the analysis of S-Pankki account extracts provided in .csv format. The script facilitates manual categorization of the data, while also incorporating a memory feature that associates categories with recipient names ("Saajan nimi"). This proves effective for categorizing the majority of my expenses.
+
+
+## Usage
+
+Execute the script using the following command:
 
 ```bash
-python3 expenseanalyser.py export.csv
+python3 expense_analyzer.py export.csv
 ```
 
-## Why
 
-I wanted to automate expences analysis, since S-Pankki don't yet have automatic statistics embedded into their app. And I am to lazy to duplicate each transaction in a speciall app.
+## Motivation
 
-## How
+This project emerged from the need to automate expense analysis, as S-Pankki's current application lacks built-in automatic statistical functionality. The avoidance of duplicating each transaction in a dedicated application served as a driving force behind this automation effort.
 
-I have been trying to use Chat gpt for it, but it started forgeting the context on the stage, when I still wasn't satisfied with the functionality. If interested, you can see the versions of the script in the `chatgpt/` folder. Need to say that chatgpt writes quite nice code to start with, but it is difficult to get final version from it :pizza:. May be it was worth to ask for implementation of tests first, and then feed it with the testcases :)
 
-## Future?
+## Methodology
 
-I will maintain this script till the condition I am satisfied with (or S-Pankki add this statistics into their app). Current version needs:
-- Refactoring
-- Fixing functionality implemented by chatgpt
-- Tests
-- Added configurability, so it works not only with the S-Pankki extracts
-- Add simple Logistic regression model (and non simple language model) to make classification process even easier
-- Alternatively, create a database of the common places where people do spent their money
+Initially, I experimented with utilizing ChatGPT for this task. However, the model exhibited a tendency to lose context during development stages, hindering the attainment of desired functionality. Interested individuals can access various script versions within the chatgpt/ folder. It is noteworthy that ChatGPT generates commendable initial code, although refining it into a final version posed challenges. Perhaps it would have been prudent to request test case implementations before soliciting code generation from the model.
+
+
+## Future Prospects
+
+I will continue refining this script until I achieve a level of satisfaction or until S-Pankki integrates statistical features into their application. The current version necessitates the following enhancements:
+
+- Comprehensive refactoring
+- Implementation of testing procedures
+- Enhanced configurability to accommodate not just S-Pankki extracts
+- Introduction of a basic Logistic Regression model (and potentially a more complex language model) to simplify the classification process
+- Alternatively, establishment of a database cataloging common expenditure locations
